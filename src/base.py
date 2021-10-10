@@ -1,42 +1,46 @@
 #!/usr/bin/env python3
 import logging
-import serial
-from time import sleep
-from ubx import UBXManager
-
-BAUDRATE = 38400
-HOST_PORT = '/dev/gps-uart1'
+from serial import Serial
+from config import loadConfig
+from ublox import UBloxManager
 
 log = logging.getLogger('base')
 
 
-def print_NMEA(data):
-    print(data)
-
-
 def main():
-    log.info(f'Creating UBX manager on {HOST_PORT}')
-    ser = serial.Serial(HOST_PORT, BAUDRATE)
-    manager = UBXManager(ser)
+    # load base station config
+    config_file = './config.cfg'
+    log.info(f'Loading configuration from {config_file}')
+    all_config = loadConfig(config_file)
+    config = all_config["base"]
 
-    manager.onNMEA = print_NMEA
+    # get constants from config
+    DEBUG = bool(config["DEBUG"])
+    BAUDRATE = int(config["BAUDRATE"])
+    TIMEOUT = int(config["TIMEOUT"])  
+    PORT = config["PORT"]
+    TMODE = config["TMODE"]
+    OBSERVATION_TIME = int(config["OBSERVATION_TIME"])
+    POSITION_ACCURACY = float(config["POSITION_ACCURACY"])
 
-    log.info('Starting UBX manager')
-    manager.start()
+    # connect to serial port
+    log.info(f'Connecting to serial port {PORT}')
+    stream = Serial(PORT, BAUDRATE, timeout=TIMEOUT)
 
-    # Keep running until the user presses CTRL-C in the terminal
-    try:
-        while True:
-            sleep(10)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        log.info('Asking UBX manager to terminate')
-        manager.shutdown()
-        manager.join()
-        log.info('UBX manager terminated')
+    # create a ublox manager
+    log.info(f'Creating UBloxManager manager on {PORT}')
+    manager = UBloxManager(stream)
 
-        ser.close()
+    # change operation mode 
+    log.info(f'Setting {PORT} in {TMODE} mode')
+    manager.TMODE3.setMode(TMODE)
+
+    # TODO: setup OBSERVATION_TIME and POSITION_ACCURACY
+    # TODO: maybe support Fixed mode?
+
+    # print corrent TMODE 3 config
+    log.info("current TMODE3 config:")
+    log.info(manager.TMODE3.getConfig())
 
 
 if __name__ == '__main__':
