@@ -52,6 +52,21 @@ class UART1:
             raise ValueError("expected 'ACK-ACK' message.")
 
 
+    # For each message and port a separate output rate (per second, per epoch) can be configured.
+    def configRTCM_1500_OutputRate(self, rate):
+        layer = 1 ## RAM
+
+        transaction = 0
+        cfgData = [("CFG_MSGOUT_RTCM_3X_TYPE1005_UART1", rate)]
+        msg = UBXMessage.config_set(layer, transaction, cfgData)
+        self._serial.write(msg.serialize())
+
+        raw_ack, ack = self._ubr.read()
+
+        if ack.identity != 'ACK-ACK':
+            raise ValueError("expected 'ACK-ACK' message.")
+
+
     def getConfig(self):
         layer = 0 ## RAM
 

@@ -54,10 +54,19 @@ def main():
 
     log.info("Disable UART1 NMEA output")
     manager.UART1.configNMEAOutput(UART1OUTPUT_DISABLE)
+
+    # For each message and port a separate output rate (per second, per epoch) can be configured.
+    log.info("Set UART1 RTCM1500 output rate")
+    output_rate = 255 # output_rate should be between 0 to 255
+    manager.UART1.configRTCM_1500_OutputRate(output_rate)
     
     log.info("UART1 output config")
     defaultConfig = manager.UART1.getConfig()
     log.info(defaultConfig)
+
+    while True:
+        c = stream.read()
+        print(c.hex())
 
 
 
