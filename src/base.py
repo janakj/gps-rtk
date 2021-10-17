@@ -43,6 +43,12 @@ def main():
     log.info("current TMODE3 config:")
     log.info(manager.TMODE3.getConfig())
 
+    # ouput RTCM bytes (this stream will be forwarded to the rover)
+    # Note: this times out if the chip is indoor
+    rtcm_stream = manager.RTCMStream()
+    while True:
+        print(rtcm_stream.read())
+
 
 if __name__ == '__main__':
     logging.basicConfig(format="%(levelname)s:%(name)s:%(asctime)s:  %(message)s", level=logging.DEBUG)
