@@ -18,6 +18,7 @@ def main():
     DEBUG = bool(config["DEBUG"])
     BAUDRATE = int(config["BAUDRATE"])
     TIMEOUT = int(config["TIMEOUT"])  
+    STREAM_TTL = int(config["STREAM_TTL"])  
     PORT = config["PORT"]
     TMODE = config["TMODE"]
     OBSERVATION_TIME = int(config["OBSERVATION_TIME"])
@@ -29,7 +30,7 @@ def main():
 
     # create a ublox manager
     log.info(f'Creating UBloxManager manager on {PORT}')
-    manager = UBloxManager(stream)
+    manager = UBloxManager(stream, STREAM_TTL)
 
     # change operation mode 
     log.info(f'Setting {PORT} in {TMODE} mode')
