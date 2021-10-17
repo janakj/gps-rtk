@@ -1,23 +1,20 @@
 from threading import Thread
 
 from .UBloxQueue import UBloxQueue
-from .UBloxStream import UBloxStream
 
-class UBloxStreamDEMUX:
-    def __init__(self, serial, ttl, timeout):
+class UBloxReaderDEMUX:
+    def __init__(self, serial, ttl, timeout, onError=None):
         self._serial = serial
 
         self._nmea_q = UBloxQueue(ttl, timeout)
-        self._nmea_stream = UBloxStream(self._nmea_q)
-
         self._ubx_q = UBloxQueue(ttl, timeout)
-        self._ubx_stream = UBloxStream(self._ubx_q)
-
         self._rtcm_q = UBloxQueue(ttl, timeout)
-        self._rtcm_stream = UBloxStream(self._rtcm_q)
 
-        reader_thread = Thread(target=self._read_to_queue)
-        reader_thread.start()
+        self._onError = onError
+
+        self._reader_thread = Thread(target=self._read_to_queue)
+        self._reader_thread.daemon = True
+        self._reader_thread.start()
 
     def _read_to_queue(self):
         ser = self._serial
@@ -88,13 +85,15 @@ class UBloxStreamDEMUX:
 
             
             """ error """
-            # print("error", frame)
+            if self._onError:
+                data = b"".join(frame)
+                self._onError(data)
+    
+    def readNMEA(self):
+        return self._nmea_q.get()
 
-    def NMEAStream(self):
-        return self._nmea_stream
+    def readUBX(self):
+        return self._ubx_q.get()
 
-    def UBXStream(self):
-        return self._ubx_stream
-
-    def RTCMStream(self):
-        return self._rtcm_stream
+    def readRTCM(self):
+        return self._rtcm_q.get()

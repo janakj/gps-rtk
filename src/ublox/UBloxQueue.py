@@ -7,7 +7,10 @@ class UBloxQueue():
         self._q = Queue()
         self._max_ttl = ttl
         self._timeout = timeout
+
         self._watcher_thread = Thread(target=self._watch_old_items)
+        self._watcher_thread.daemon = True
+        self._watcher_thread.start()
     
     def _watch_old_items(self):
         while True:

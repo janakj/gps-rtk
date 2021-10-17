@@ -1,23 +1,30 @@
 from .TMODE3 import TMODE3
-from .UBloxStreamDEMUX import UBloxStreamDEMUX
+from .UBloxReaderDEMUX import UBloxReaderDEMUX
+from .UBloxWriterMUX import UBloxWriterMUX
+from .UBloxStream import UBloxStream
+
 from pyubx2 import UBXReader
 
 class UBloxManager:
     def __init__(self, serial, ttl):
-        stream_demux = UBloxStreamDEMUX(serial, ttl, serial.timeout)
-        self._nmea_stream = stream_demux.NMEAStream()
-        self._ubx_stream = stream_demux.UBXStream()
-        self._rtcm_stream = stream_demux.RTCMStream()
+        # split serial streams into separate stream for each protocol
+        readerDEMUX = UBloxReaderDEMUX(serial, ttl, serial.timeout)
+        writerMUX = UBloxWriterMUX(serial)
+        self._nmea_stream = UBloxStream(readerDEMUX.readNMEA, writerMUX.writeNMEA)
+        self._ubx_stream = UBloxStream(readerDEMUX.readUBX, writerMUX.writeUBX)
+        self._rtcm_stream = UBloxStream(readerDEMUX.readRTCM, writerMUX.writeRTCM)
 
-        # TODO: MUX for writing
+        # UBX reader
         ubr = UBXReader(self._ubx_stream)
-        self.TMODE3 = TMODE3(serial, ubr)
+
+        # TMODE3
+        self.TMODE3 = TMODE3(self._ubx_stream, ubr)
     
-    def NMEAStream(self):
+    def getNMEAStream(self):
         return self._nmea_stream
     
-    def UBXStream(self):
+    def getUBXStream(self):
         return self._ubx_stream
     
-    def RTCMStream(self):
+    def getRTCMStream(self):
         return self._rtcm_stream
