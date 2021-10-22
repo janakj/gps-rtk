@@ -3,9 +3,16 @@ import logging
 from serial import Serial
 from config import loadConfig
 from ublox import UBloxManager
+from threading import Thread
 
 log = logging.getLogger('base')
 
+
+def write_rtcm_to_xbee(rtcm_stream):
+    xbee_stream = Serial("/dev/xbee", 115200, timeout=5)
+    while True:
+        byte = rtcm_stream.read()
+        xbee_stream.write(byte)
 
 def main():
     # load base station config
@@ -39,14 +46,26 @@ def main():
     # TODO: setup OBSERVATION_TIME and POSITION_ACCURACY
     # TODO: maybe support Fixed mode?
 
-    # print corrent TMODE 3 config
-    log.info("current TMODE3 config:")
-    log.info(manager.TMODE3.getConfig())
+    manager.MSG.enableRTCM(interface="UART1")
+    # manager.MSG.enableMsg(msg="CFG_MSGOUT_RTCM_3X_TYPE1074_UART1")
+    manager.MSG.disableMsg(msg="CFG_MSGOUT_RTCM_3X_TYPE1074_UART1")
 
-    # manually get nmea stream
-    nmea_stream = manager.getNMEAStream()
-    while True:
-        print(nmea_stream.readline())
+    manager.MSG.enableMsg(msg="CFG_MSGOUT_RTCM_3X_TYPE1124_UART1")
+
+    # run RTCM thread
+    rtcm_thread = Thread(target=write_rtcm_to_xbee, args=[manager.getRTCMStream()])
+    rtcm_thread.start()
+
+    # # print corrent TMODE 3 config
+    # log.info("current TMODE3 config:")
+    # log.info(manager.TMODE3.getConfig())
+
+    # # manually get RTCM stream
+    # rtcm_stream = manager.getRTCMStream()
+    # while True:
+    #     print(rtcm_stream.read())
+
+
 
 
 if __name__ == '__main__':

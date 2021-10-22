@@ -1,4 +1,6 @@
 from .TMODE3 import TMODE3
+from .MSG import MSG
+
 from .UBloxReaderDEMUX import UBloxReaderDEMUX
 from .UBloxWriterMUX import UBloxWriterMUX
 from .UBloxStream import UBloxStream
@@ -19,6 +21,9 @@ class UBloxManager:
 
         # TMODE3
         self.TMODE3 = TMODE3(self._ubx_stream, ubr)
+    
+        # MSG
+        self.MSG = MSG(self._ubx_stream, ubr)
     
     def getNMEAStream(self):
         return self._nmea_stream
