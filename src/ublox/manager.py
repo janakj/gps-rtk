@@ -17,13 +17,13 @@ class UBloxManager:
         self._rtcm_stream = UBloxStream(readerDEMUX.readRTCM, writerMUX.writeRTCM)
 
         # UBX reader
-        ubr = UBXReader(self._ubx_stream)
+        self._ubr = UBXReader(self._ubx_stream)
 
         # TMODE3
-        self.TMODE3 = TMODE3(self._ubx_stream, ubr)
+        self.TMODE3 = TMODE3(self._ubx_stream, self._ubr)
     
         # MSG
-        self.MSG = MSG(self._ubx_stream, ubr)
+        self.MSG = MSG(self._ubx_stream, self._ubr)
     
     def getNMEAStream(self):
         return self._nmea_stream

@@ -34,7 +34,10 @@ class UBloxQueue():
 
     def get(self):
         get_at = time.time()
-        item, expires_at = self._q.get(True, self._timeout)
-        while expires_at <= get_at:
+        try:
             item, expires_at = self._q.get(True, self._timeout)
-        return item
+            while expires_at <= get_at:
+                item, expires_at = self._q.get(True, self._timeout)
+            return item
+        except:
+            return b''

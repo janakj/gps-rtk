@@ -8,11 +8,12 @@ from threading import Thread
 log = logging.getLogger('base')
 
 
-def write_rtcm_to_xbee(rtcm_stream):
+def base_rtcm_handler(rtcm_stream):
     xbee_stream = Serial("/dev/xbee", 115200, timeout=5)
     while True:
         byte = rtcm_stream.read()
         xbee_stream.write(byte)
+
 
 def main():
     # load base station config
@@ -39,33 +40,23 @@ def main():
     log.info(f'Creating UBloxManager manager on {PORT}')
     manager = UBloxManager(stream, STREAM_TTL)
 
-    # change operation mode 
-    log.info(f'Setting {PORT} in {TMODE} mode')
-    manager.TMODE3.setMode(TMODE)
-
-    # TODO: setup OBSERVATION_TIME and POSITION_ACCURACY
-    # TODO: maybe support Fixed mode?
+    # set in fixed position (will be changed to survey-in mode)
+    log.info(f'Setting {PORT} in fixed position mode')
+    manager.TMODE3.enableFixedPositionLLH(40.8074954, -73.9618238, 16.82, 0.5)
 
     manager.MSG.enableRTCM(interface="UART1")
-    # manager.MSG.enableMsg(msg="CFG_MSGOUT_RTCM_3X_TYPE1074_UART1")
+    manager.MSG.enableMsg(msg="CFG_MSGOUT_RTCM_3X_TYPE1074_UART1")
     manager.MSG.disableMsg(msg="CFG_MSGOUT_RTCM_3X_TYPE1074_UART1")
-
     manager.MSG.enableMsg(msg="CFG_MSGOUT_RTCM_3X_TYPE1124_UART1")
 
     # run RTCM thread
-    rtcm_thread = Thread(target=write_rtcm_to_xbee, args=[manager.getRTCMStream()])
+    rtcm_thread = Thread(target=base_rtcm_handler, args=[manager.getRTCMStream()])
     rtcm_thread.start()
 
-    # # print corrent TMODE 3 config
-    # log.info("current TMODE3 config:")
-    # log.info(manager.TMODE3.getConfig())
-
-    # # manually get RTCM stream
-    # rtcm_stream = manager.getRTCMStream()
+    # manually get nmea stream
+    # nmea_stream = manager.getNMEAStream()
     # while True:
-    #     print(rtcm_stream.read())
-
-
+    #     print(nmea_stream.readline())
 
 
 if __name__ == '__main__':

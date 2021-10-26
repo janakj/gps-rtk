@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import logging
-import serial
+from serial import Serial
 from time import sleep
-from ubx import UBXManager
+from config import loadConfig
+from ublox import UBloxManager
+from threading import Thread
+
 from bluetooth import BluetoothTransmitter
 
 BAUDRATE = 38400
@@ -12,35 +15,68 @@ BLUETOOTH_PORT = '/dev/rfcomm0'
 log = logging.getLogger('rover')
 
 
+def rover_rtcm_handler(rtcm_stream):
+    xbee_stream = Serial("/dev/xbee", 115200, timeout=5)
+    while True:
+        byte = xbee_stream.read()
+        rtcm_stream.write(byte)
+
+
 def main():
-    log.info(f'Creating UBX manager on {HOST_PORT}')
-    ser = serial.Serial(HOST_PORT, BAUDRATE)
-    manager = UBXManager(ser)
+    # load rover config
+    config_file = './config.cfg'
+    log.info(f'Loading configuration from {config_file}')
+    all_config = loadConfig(config_file)
+    config = all_config["rover"]
 
-    log.info(f'Creating Bluetooth transmitter on {BLUETOOTH_PORT}')
-    bluetooth = BluetoothTransmitter(BLUETOOTH_PORT)
-    manager.onNMEA = bluetooth.onNMEA
+    # get constants from config
+    DEBUG = bool(config["DEBUG"])
+    BAUDRATE = int(config["BAUDRATE"])
+    TIMEOUT = int(config["TIMEOUT"])  
+    STREAM_TTL = int(config["STREAM_TTL"])  
+    PORT = config["PORT"]
 
-    bluetooth.start()
+    # connect to serial port
+    log.info(f'Connecting to serial port {PORT}')
+    stream = Serial(PORT, BAUDRATE, timeout=TIMEOUT)
 
-    log.info('Starting UBX manager')
-    manager.start()
+    # create a ublox manager
+    log.info(f'Creating UBloxManager manager on {PORT}')
+    manager = UBloxManager(stream, STREAM_TTL)
 
-    # Keep running until the user presses CTRL-C in the terminal
-    try:
-        while True:
-            sleep(10)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        bluetooth.shutdown()
+    # disable TMODE3
+    log.info(f'Disabling TMODE3 on {PORT}')
+    manager.TMODE3.disable()
 
-        log.info('Asking UBX manager to terminate')
-        manager.shutdown()
-        manager.join()
-        log.info('UBX manager terminated')
+    # run rover's RTCM handler thread
+    rtcm_thread = Thread(target=rover_rtcm_handler, args=[manager.getRTCMStream()])
+    rtcm_thread.start()
 
-        ser.close()
+
+    # log.info(f'Creating Bluetooth transmitter on {BLUETOOTH_PORT}')
+    # bluetooth = BluetoothTransmitter(BLUETOOTH_PORT)
+    # manager.onNMEA = bluetooth.onNMEA
+
+    # bluetooth.start()
+
+    # log.info('Starting UBX manager')
+    # manager.start()
+
+    # # Keep running until the user presses CTRL-C in the terminal
+    # try:
+    #     while True:
+    #         sleep(10)
+    # except KeyboardInterrupt:
+    #     pass
+    # finally:
+    #     bluetooth.shutdown()
+
+    #     log.info('Asking UBX manager to terminate')
+    #     manager.shutdown()
+    #     manager.join()
+    #     log.info('UBX manager terminated')
+
+    #     ser.close()
 
 
 if __name__ == '__main__':
