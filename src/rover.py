@@ -24,6 +24,7 @@ def rover_rtcm_handler(rtcm_stream):
 def rover_nmea_handler(nmea_stream, bluetooth):
     while True: # Could be wrong to read line by line
         msg = nmea_stream.readline()
+        msg = msg.strip()
         bluetooth.onNMEA(msg)
 
 
@@ -54,22 +55,26 @@ def main():
     manager.TMODE3.disable()
 
     # enable NMEA
-    # log.info(f'Enable NMEA on {PORT}')
-    # manager.MSG.enableNMEA(interface="UART1") # NMEA messages are enabled by default
+    log.info(f'Enable NMEA on {PORT}')
+    manager.MSG.enableNMEA(interface="UART1") # NMEA messages are enabled by default
 
     # run rover's RTCM handler thread
     rtcm_thread = Thread(target=rover_rtcm_handler, args=[manager.getRTCMStream()])
     rtcm_thread.start()
 
-    # log.info(f'Creating Bluetooth transmitter on {BLUETOOTH_PORT}')
-    # bluetooth = BluetoothTransmitter(BLUETOOTH_PORT)
+    nmea_stream = manager.getNMEAStream()
+    # while True:
+    #     print(nmea_stream.readline())
 
-    # nmea_thread = Thread(target=rover_nmea_handler, args=[manager.getNMEStream(), bluetooth])
-    # nmea_thread.start()
+    log.info(f'Creating Bluetooth transmitter on {BLUETOOTH_PORT}')
+    bluetooth = BluetoothTransmitter(BLUETOOTH_PORT)
 
+    nmea_thread = Thread(target=rover_nmea_handler, args=[nmea_stream, bluetooth])
+    nmea_thread.start()
+
+    bluetooth.start()
+    
     # manager.onNMEA = bluetooth.onNMEA # This is a pyUBX manager, which is no longer used in our code
-
-    # bluetooth.start()
 
     # log.info('Starting UBX manager')
     # manager.start()

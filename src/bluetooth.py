@@ -11,17 +11,19 @@ from threading import Thread
 log = logging.getLogger(__name__)
 
 
-def compute_NMEA_checksum(data):
-    v = 0
-    for c in data:
-        v = v ^ ord(c)
-    return '{:02X}'.format(v)
+# def compute_NMEA_checksum(data):
+#     v = 0
+#     for c in data:
+#         # v = v ^ ord(c)
+#         v = v ^ c
+#     return '{:02X}'.format(v)
 
 
 def wrap(data):
-    csum = compute_NMEA_checksum(data)
-    return f'${data}*{csum}\r\n'
-
+    # csum = compute_NMEA_checksum(data)
+    #return data + b'*' + csum.encode('utf-8') + b'\r\n'
+    # return f'${data}*{csum}\r\n'
+    return data + b'\r\n'
 
 class BluetoothTransmitter(Thread):
     def __init__(self, port, queue_size=64, write_timeout=1):
@@ -82,7 +84,7 @@ class BluetoothTransmitter(Thread):
             return
 
         try:
-            self.port.write(msg.encode('utf-8'))
+            self.port.write(msg)
         except Exception as e:
             log.debug(f'Write error: {e.__context__ if e.__context__ else e}')
             self._close_port()
