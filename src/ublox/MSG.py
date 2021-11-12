@@ -65,6 +65,40 @@ class MSG:
 
         self._setMsgOutputRate(msg, layer=layer, output_rate=0)
 
+    def _setPortBaudrate(self, layer, port, baudrate):
+        transaction = 0
+        cfgData = [("CFG_" + port + "_BAUDRATE", baudrate)]
+        msg = UBXMessage.config_set(layer, transaction, cfgData)
+        self._serial.write(msg.serialize())
+
+        # raw_ack, ack = self._ubr.read()
+        # print("ack is {}".format(raw_ack))
+
+        # if ack.identity != 'ACK-ACK':
+        #     raise ValueError("expected 'ACK-ACK' message.")
+
+        # raw_ack, ack = self._ubr.read()
+
+    def setUART1Baudrate(self, baudrate=38400, layer=1):
+        # layer: RAM = 1
+        self._setPortBaudrate(layer=layer, port="UART1", baudrate=baudrate)
+
+    def getConfigInfo(self, keys):
+        layer = 0 ## RAM
+
+        position = 0
+        req = UBXMessage.config_poll(layer, position, keys)
+        self._serial.write(req.serialize())
+
+        raw_rsp, parsed_rsp = self._ubr.read()
+        raw_ack, parsed_ack = self._ubr.read()
+
+        if parsed_ack.identity != 'ACK-ACK':
+            raise ValueError("expected 'ACK-ACK' message.")
+
+        return parsed_rsp
+
+
     # def enableRTCMOutput(self):
     #     layer = 1 ## RAM
     #     enable = 1
