@@ -1,0 +1,15 @@
+RAM:
+  UBX-CFG-VALSET:
+    # enable RTCM examination
+    - CFG-MSGOUT-UBX_RXM_RTCM_UART1: 1
+
+    # enable navigation status
+    - CFG-MSGOUT-UBX_NAV_STATUS_UART1: 1
+
+    # change baudrate
+    - CFG-UART1-BAUDRATE: 460800
+
+Flash:
+  UBX-CFG-VALSET:
+    # change baudrate
+    - CFG-UART1-BAUDRATE: 460800

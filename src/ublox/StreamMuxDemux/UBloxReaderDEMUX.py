@@ -89,6 +89,8 @@ class UBloxReaderDEMUX:
                 data = b"".join(frame)
                 self._onError(data)
     
+
+    
     def readNMEA(self):
         return self._nmea_q.get()
 

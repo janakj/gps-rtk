@@ -1,99 +1,77 @@
 #!/usr/bin/env python3
 import logging
-from serial import Serial
-from time import sleep
-from config import loadConfig
-from ublox import UBloxManager
 from threading import Thread
-
+from serial import Serial
+from pyubx2 import UBXReader
+from ublox import StreamMuxDemux, UBXSerializer
 from bluetooth import BluetoothTransmitter
 
-BAUDRATE = 38400
-HOST_PORT = '/dev/gps-uart1'
-BLUETOOTH_PORT = '/dev/rfcomm0'
 
 log = logging.getLogger('rover')
 
 
-def rover_rtcm_handler(rtcm_stream):
+def rtcm_handler(rtcm_stream):
+    # TODO:
     xbee_stream = Serial("/dev/xbee", 115200, timeout=5)
     while True:
         byte = xbee_stream.read()
         rtcm_stream.write(byte)
 
-def rover_nmea_handler(nmea_stream, bluetooth):
-    while True: # Could be wrong to read line by line
+
+def nmea_handler(nmea_stream):
+    # TODO:
+    # create a bluetooth transmitter
+    BLUETOOTH_PORT = '/dev/rfcomm0'
+    log.info(f'Creating Bluetooth transmitter on {BLUETOOTH_PORT}')
+    bluetooth = BluetoothTransmitter(BLUETOOTH_PORT)
+
+    # send nmea over bluetooth
+    while True:
         msg = nmea_stream.readline()
         msg = msg.strip()
         bluetooth.onNMEA(msg)
 
+def ubx_handler(ubx_stream):
+    ubr = UBXReader(ubx_stream)
+    while True:
+        raw, msg = ubr.read()
+        print(msg)
+
 
 def main():
-    # load rover config
-    config_file = './config.cfg'
-    log.info(f'Loading configuration from {config_file}')
-    all_config = loadConfig(config_file)
-    config = all_config["rover"]
-
-    # get constants from config
-    DEBUG = bool(config["DEBUG"])
-    BAUDRATE = int(config["BAUDRATE"])
-    TIMEOUT = int(config["TIMEOUT"])  
-    STREAM_TTL = int(config["STREAM_TTL"])  
-    PORT = config["PORT"]
-
     # connect to serial port
+    PORT = "/dev/gps-uart1"
+    BAUDRATE = 460800
+    TIMEOUT = 5
     log.info(f'Connecting to serial port {PORT}')
-    stream = Serial(PORT, BAUDRATE, timeout=TIMEOUT)
+    original_stream = Serial(PORT, BAUDRATE, timeout=TIMEOUT)
 
-    # create a ublox manager
-    log.info(f'Creating UBloxManager manager on {PORT}')
-    manager = UBloxManager(stream, STREAM_TTL)
+    # split serial stream into a stream for each protocol
+    log.info(f'Splitting serial stream into a stream for each protocol')
+    streams = StreamMuxDemux(original_stream)
 
-    # disable TMODE3
-    log.info(f'Disabling TMODE3 on {PORT}')
-    manager.TMODE3.disable()
+    # load configuration
+    CONFIG_FILE = open("./config/rover.yml", "r")
+    log.info(f'Loading configuration from {CONFIG_FILE}')
+    config = UBXSerializer.serialize(CONFIG_FILE)
+    streams.UBX.write(config)
+    # TODO: verify ubx answer
+    ubr = UBXReader(streams.UBX)
 
-    # enable NMEA
-    log.info(f'Enable NMEA on {PORT}')
-    manager.MSG.enableNMEA(interface="UART1") # NMEA messages are enabled by default
+    # run UBX thread
+    log.info(f'Creating a thread for handling UBX')
+    ubx_thread = Thread(target=ubx_handler, args=[streams.UBX])
+    ubx_thread.start()
 
-    # run rover's RTCM handler thread
-    rtcm_thread = Thread(target=rover_rtcm_handler, args=[manager.getRTCMStream()])
+    # run RTCM thread
+    log.info(f'Creating a thread for handling RTCM')
+    rtcm_thread = Thread(target=rtcm_handler, args=[streams.RTCM])
     rtcm_thread.start()
 
-    nmea_stream = manager.getNMEAStream()
-    # while True:
-    #     print(nmea_stream.readline())
-
-    log.info(f'Creating Bluetooth transmitter on {BLUETOOTH_PORT}')
-    bluetooth = BluetoothTransmitter(BLUETOOTH_PORT)
-
-    nmea_thread = Thread(target=rover_nmea_handler, args=[nmea_stream, bluetooth])
+    # run NMEA thread
+    log.info(f'Creating a thread for handling NMEA')
+    nmea_thread = Thread(target=nmea_handler, args=[streams.NMEA])
     nmea_thread.start()
-
-    bluetooth.start()
-    
-    # manager.onNMEA = bluetooth.onNMEA # This is a pyUBX manager, which is no longer used in our code
-
-    # log.info('Starting UBX manager')
-    # manager.start()
-
-    # # Keep running until the user presses CTRL-C in the terminal
-    # try:
-    #     while True:
-    #         sleep(10)
-    # except KeyboardInterrupt:
-    #     pass
-    # finally:
-    #     bluetooth.shutdown()
-
-    #     log.info('Asking UBX manager to terminate')
-    #     manager.shutdown()
-    #     manager.join()
-    #     log.info('UBX manager terminated')
-
-    #     ser.close()
 
 
 if __name__ == '__main__':
