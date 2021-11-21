@@ -2,16 +2,13 @@
 import logging
 from threading import Thread
 from serial import Serial
-from pyubx2 import UBXReader
 from ublox import StreamMuxDemux, UBXSerializer
-from bluetooth import BluetoothTransmitter
 
 
 log = logging.getLogger('rover')
 
 
 def rtcm_handler(rtcm_stream):
-    # TODO:
     xbee_stream = Serial("/dev/xbee", 115200, timeout=5)
     while True:
         byte = xbee_stream.read()
@@ -19,23 +16,14 @@ def rtcm_handler(rtcm_stream):
 
 
 def nmea_handler(nmea_stream):
-    # TODO:
     # create a bluetooth transmitter
     BLUETOOTH_PORT = '/dev/rfcomm0'
-    log.info(f'Creating Bluetooth transmitter on {BLUETOOTH_PORT}')
-    bluetooth = BluetoothTransmitter(BLUETOOTH_PORT)
+    bluetooth_stream = Serial(BLUETOOTH_PORT, 115200, timeout=5)
 
     # send nmea over bluetooth
     while True:
-        msg = nmea_stream.readline()
-        msg = msg.strip()
-        bluetooth.onNMEA(msg)
-
-def ubx_handler(ubx_stream):
-    ubr = UBXReader(ubx_stream)
-    while True:
-        raw, msg = ubr.read()
-        print(msg)
+        byte = nmea_stream.read()
+        bluetooth_stream.write(byte)
 
 
 def main():
@@ -56,12 +44,6 @@ def main():
     config = UBXSerializer.serialize(CONFIG_FILE)
     streams.UBX.write(config)
     # TODO: verify ubx answer
-    ubr = UBXReader(streams.UBX)
-
-    # run UBX thread
-    log.info(f'Creating a thread for handling UBX')
-    ubx_thread = Thread(target=ubx_handler, args=[streams.UBX])
-    ubx_thread.start()
 
     # run RTCM thread
     log.info(f'Creating a thread for handling RTCM')

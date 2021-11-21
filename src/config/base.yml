@@ -3,14 +3,11 @@ RAM:
     # enable survey-in mode
     - CFG-TMODE-MODE: 1
     - CFG-TMODE-SVIN_MIN_DUR: 60
-    - CFG-TMODE-SVIN_ACC_LIMIT: 1000000
+    - CFG-TMODE-SVIN_ACC_LIMIT: 100000
 
-    # enable survey-in status output
-    - CFG-MSGOUT-UBX_NAV_SVIN_UART1: 1
-
-    # enable output of all protocols
-    - CFG-UART1OUTPROT-UBX: 1
-    - CFG-UART1OUTPROT-NMEA: 1
+    # disable all output except RTCM on uart1
+    - CFG-UART1OUTPROT-UBX: 0
+    - CFG-UART1OUTPROT-NMEA: 0
     - CFG-UART1OUTPROT-RTCM3X: 1
 
     # enable rtcm messages

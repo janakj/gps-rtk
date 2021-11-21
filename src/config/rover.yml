@@ -9,6 +9,10 @@ RAM:
     # change baudrate
     - CFG-UART1-BAUDRATE: 460800
 
+    # disable RTCM output on uart1
+    - CFG-UART1OUTPROT-RTCM3X: 0
+
+
 Flash:
   UBX-CFG-VALSET:
     # change baudrate
