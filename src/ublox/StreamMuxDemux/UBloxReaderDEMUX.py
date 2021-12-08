@@ -1,6 +1,8 @@
+from logging import error
 from threading import Thread
 
 from .UBloxQueue import UBloxQueue
+from .StreamMuxDemuxError import StreamMuxDemuxError
 
 class UBloxReaderDEMUX:
     def __init__(self, serial, ttl, timeout, onError=None):
@@ -12,14 +14,33 @@ class UBloxReaderDEMUX:
 
         self._onError = onError
 
+        self._closed = False
         self._reader_thread = Thread(target=self._read_to_queue)
         self._reader_thread.daemon = True
         self._reader_thread.start()
 
+    def _validate(self):
+        if self._closed:
+            raise StreamMuxDemuxError("Use of a closed UBloxReaderDEMUX")
+
     def _read_to_queue(self):
+        error = None
+        try:
+            self._real_read_to_queue()
+
+        # TODO: change exception type to only serial exceptions
+        except Exception as e:
+            self.close()
+            error = e
+        
+        if error:
+            raise StreamMuxDemuxError(error)
+
+    def _real_read_to_queue(self):
+        self._validate()
         ser = self._serial
 
-        while True:
+        while not self._closed:
             frame = [ser.read()]
 
             """ NMEA """
@@ -31,6 +52,8 @@ class UBloxReaderDEMUX:
                 
                 """ add msg to NMEA queue"""
                 for byte in msg:
+                    if self._nmea_q.is_closed():
+                        break
                     self._nmea_q.put(byte.to_bytes(1, 'big'))
 
                 # done
@@ -56,6 +79,8 @@ class UBloxReaderDEMUX:
 
                     """ add msg to UBX queue"""
                     for byte in msg:
+                        if self._ubx_q.is_closed():
+                            break
                         self._ubx_q.put(byte.to_bytes(1, 'little'))
 
                     # done
@@ -78,6 +103,8 @@ class UBloxReaderDEMUX:
 
                 """ add msg to UBX queue"""
                 for byte in msg:
+                    if self._rtcm_q.is_closed():
+                        break
                     self._rtcm_q.put(byte.to_bytes(1, 'little'))
 
                 # done
@@ -92,10 +119,29 @@ class UBloxReaderDEMUX:
 
     
     def readNMEA(self):
+        self._validate()
         return self._nmea_q.get()
 
     def readUBX(self):
+        self._validate()
         return self._ubx_q.get()
 
     def readRTCM(self):
+        self._validate()
         return self._rtcm_q.get()
+
+    def close(self):
+        if self._closed:
+            return
+        self._closed = True
+        self._nmea_q.close()
+        self._ubx_q.close()
+        self._rtcm_q.close()
+
+        try:
+            self._reader_thread.join()
+        except:
+            pass
+    
+    def is_closed(self):
+        return self._closed
